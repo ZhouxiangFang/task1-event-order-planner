@@ -13,16 +13,13 @@ from mcp.server.stdio import stdio_server
 from slimconfig import build_output, output_schema, plain_output
 
 from contract import TOOLS, Tool
-from plugin import get_prerequisites, list_events
+from plugin import get_prerequisites
 
 server = Server("task1-event-order-planner")
 # NanoAgent names the one folder this plugin may write to.
 WORKSPACE_ENV = "NANOAGENT_WORKSPACE"
 # Each tool's implementation: (its input, the workspace) -> its output, as contract.TOOLS types them.
-IMPLEMENTATIONS = {
-    Tool.LIST_EVENTS: list_events,
-    Tool.GET_PREREQUISITES: get_prerequisites,
-}
+IMPLEMENTATIONS = {Tool.GET_PREREQUISITES: get_prerequisites}
 
 
 @server.list_tools()

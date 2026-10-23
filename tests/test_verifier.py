@@ -12,18 +12,19 @@ from slimconfig import build_output, plain_output
 from test_graphs import UNSOLVABLE, an_order, is_valid_order
 
 import verifier
-from contract import TOOLS, EventOrderOutput, Graph, GraphInput, PrerequisitesInput, Tool
-from plugin.graphs import get_prerequisites, list_events
+from contract import TOOLS, EventOrderOutput, Graph, PlanInput, PrerequisitesInput, Tool
+from plugin.graphs import get_prerequisites
 from verifier.data import GRAPHS
 
 SMALL = [graph for graph in Graph if len(GRAPHS[graph.value]) <= 8]
 LARGE_SOLVABLE = [graph for graph in Graph if graph not in SMALL and graph.value not in UNSOLVABLE]
 
 
-def verify(graph: Graph, solvable: bool, order, workspace: Path) -> dict:
-    """The verdict on an answer; the task has no reference tool."""
+def verify(graph: Graph, solvable: bool, order, workspace: Path, events: list[str] | None = None) -> dict:
+    """The verdict on an answer to the task for ``graph`` (its own events unless ``events``); there is no reference."""
     output = build_output({"solvable": solvable, "order": list(order)}, EventOrderOutput)
-    arguments = build_output({"graph": graph.value}, GraphInput)
+    given = sorted(GRAPHS[graph.value]) if events is None else events
+    arguments = build_output({"graph": graph.value, "events": given}, PlanInput)
     return verifier.verify_task("plan-event-order", arguments, output, None, str(workspace))
 
 
@@ -125,10 +126,43 @@ def test_a_malformed_answer_never_reaches_the_verifier(answer: dict) -> None:
         build_output(answer, EventOrderOutput)
 
 
-@pytest.mark.parametrize("arguments", [{}, {"graph": "g99"}, {"graph": "G01"}, {"graph": None}])
+G03 = ["AB", "E", "H", "S"]
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        {},
+        {"graph": "g03"},
+        {"events": G03},
+        {"graph": "g99", "events": G03},
+        {"graph": "G03", "events": G03},
+        {"graph": None, "events": G03},
+        {"graph": "g03", "events": None},
+        {"graph": "g03", "events": "AB,E,H,S"},
+        {"graph": "g03", "events": [1, 2]},
+    ],
+)
 def test_a_malformed_task_input_is_refused(arguments: dict) -> None:
     with pytest.raises(ValueError):
-        build_output(arguments, GraphInput)
+        build_output(arguments, PlanInput)
+
+
+@pytest.mark.parametrize(
+    "events",
+    [
+        ["AB", "E", "H"],  # an event left out
+        ["AB", "E", "H", "S", "Q"],  # an event the graph does not have
+        ["AB", "E", "H", "S", "S"],  # an event twice
+        ["A", "B", "C", "D"],  # another graph's events
+        [],  # none at all
+    ],
+)
+def test_refuses_a_task_whose_events_are_not_the_graph_s(events: list[str], tmp_path: Path) -> None:
+    # Even a correct order is refused, since the task itself does not match the graph.
+    verdict = verify(Graph.G03, True, ["S", "AB", "H", "E"], tmp_path, events=events)
+    assert verdict["valid"] is False and "not those of g03" in verdict["message"]
+    assert verify(Graph.G03, True, ["S", "AB", "H", "E"], tmp_path, events=["S", "H", "E", "AB"])["valid"] is True
 
 
 def check(tool: str, value: dict, output: dict | None = None) -> bool:
@@ -147,9 +181,7 @@ def test_checks_tool_inputs() -> None:
 
 @pytest.mark.parametrize("graph", list(Graph))
 def test_approves_every_true_tool_output(graph: Graph, tmp_path: Path) -> None:
-    events = plain_output(list_events(GraphInput(graph=graph), tmp_path))
-    assert check("list_events", {"graph": graph.value}, events) is True
-    for event in events["events"]:
+    for event in GRAPHS[graph.value]:
         given = {"graph": graph.value, "event": event}
         output = plain_output(get_prerequisites(build_output(given, PrerequisitesInput), tmp_path))
         assert check("get_prerequisites", given, output) is True
@@ -158,10 +190,8 @@ def test_approves_every_true_tool_output(graph: Graph, tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("tool", "given", "output"),
     [
-        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["ZZ"]}),  # made-up events
-        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["AB", "E", "H"]}),  # one left out
-        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["S", "AB", "E", "H"]}),  # unsorted
-        ("list_events", {"graph": "g03"}, {"graph": "g05", "events": ["AB", "E", "H", "S"]}),  # another graph
+        ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": ["H", "AB"]}),  # unsorted
+        ("get_prerequisites", {"graph": "g03", "event": "S"}, {"event": "S", "prerequisites": ["S"]}),  # made up
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": []}),  # dropped
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": ["AB"]}),  # one dropped
         ("get_prerequisites", {"graph": "g03", "event": "S"}, {"event": "S", "prerequisites": ["E"]}),  # made up

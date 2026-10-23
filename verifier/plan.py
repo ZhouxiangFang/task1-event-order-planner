@@ -8,6 +8,8 @@ def verify_task(arguments, output, reference, workspace):
     """``output``: a contract EventOrderOutput, judged against the graph itself (the task has no reference tool)."""
     graph = arguments.graph.value
     prerequisites = GRAPHS[graph]
+    if sorted(arguments.events) != sorted(prerequisites):
+        return result(False, f"the task's events are not those of {graph}", given=arguments.events)
     if not has_valid_order(prerequisites):
         if output.solvable:
             return result(False, f"{graph} has no valid order, but the answer gives one")

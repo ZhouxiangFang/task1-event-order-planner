@@ -8,7 +8,6 @@ from slimconfig import Output
 
 
 class Tool(Enum):
-    LIST_EVENTS = "list_events"
     GET_PREREQUISITES = "get_prerequisites"
 
 
@@ -40,25 +39,20 @@ class Graph(Enum):
 
 
 GRAPH = "One of the bundled event graphs, g01 to g20"
-EVENTS = "Every event in the graph, sorted by name; an event's name is capital letters, e.g. A or PC"
+EVENTS = "Every event of the graph, each once; an event's name is capital letters, e.g. A or PC"
 SOLVABLE = "Whether some order has every event exactly once, each after all of its prerequisites"
 
 
 @dataclass
-class GraphInput(Output):
+class PlanInput(Output):
     graph: Annotated[Graph, GRAPH]
-
-
-@dataclass
-class EventsOutput(Output):
-    graph: Annotated[Graph, "The graph, as given"]
     events: Annotated[list[str], EVENTS]
 
 
 @dataclass
 class PrerequisitesInput(Output):
     graph: Annotated[Graph, GRAPH]
-    event: Annotated[str, "One event of the graph, as list_events returned it"]
+    event: Annotated[str, "One event of the graph, as the task lists it"]
 
 
 @dataclass
@@ -75,8 +69,5 @@ class EventOrderOutput(Output):
     ]
 
 
-TOOLS = {
-    Tool.LIST_EVENTS: (GraphInput, EventsOutput),
-    Tool.GET_PREREQUISITES: (PrerequisitesInput, PrerequisitesOutput),
-}
-TASKS = {Task.PLAN_EVENT_ORDER: (GraphInput, EventOrderOutput)}
+TOOLS = {Tool.GET_PREREQUISITES: (PrerequisitesInput, PrerequisitesOutput)}
+TASKS = {Task.PLAN_EVENT_ORDER: (PlanInput, EventOrderOutput)}

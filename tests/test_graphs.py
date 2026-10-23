@@ -1,5 +1,5 @@
 """The data and the tools: every graph well formed, whether it has a valid order worked out three ways (by hand, by the
-verifier's Kahn's algorithm and by Python's graphlib), the seeded graphs reproducible, and the tools true to the data."""
+verifier's Kahn's algorithm and by Python's graphlib), the seeded graphs reproducible, and the tool true to the data."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from generate_graphs import generate
 
-from contract import Graph, GraphInput, PrerequisitesInput
-from plugin.graphs import get_prerequisites, list_events
+from contract import Graph, PrerequisitesInput
+from plugin.graphs import get_prerequisites
 from verifier.checks import has_valid_order
 from verifier.data import GRAPHS
 
@@ -86,8 +86,7 @@ def test_graphs_have_the_number_of_valid_orders_the_readme_says() -> None:
     }
 
 
-def test_lists_events_and_their_prerequisites(tmp_path: Path) -> None:
-    assert list_events(GraphInput(graph=Graph.G03), tmp_path).events == ["AB", "E", "H", "S"]
+def test_gives_each_event_s_prerequisites(tmp_path: Path) -> None:
     assert get_prerequisites(PrerequisitesInput(graph=Graph.G03, event="E"), tmp_path).prerequisites == ["AB", "H"]
     assert get_prerequisites(PrerequisitesInput(graph=Graph.G03, event="S"), tmp_path).prerequisites == []
 

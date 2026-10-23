@@ -10,22 +10,24 @@ prerequisite, so graphs with many valid orders are judged fairly.
 
 | Tool | Does | Code |
 |---|---|---|
-| `list_events` | Lists every event of a graph, sorted by name | `src/plugin/graphs.py` |
 | `get_prerequisites` | Gives the events that must happen before one event; refuses an event the graph does not list | `src/plugin/graphs.py` |
 
 ### Tasks
 
 | Task | Does | Runner |
 |---|---|---|
-| `plan-event-order` | Orders a graph's events so each comes after its prerequisites, or says no order exists | `agent`, with `list_events` and `get_prerequisites`; reference `null` |
+| `plan-event-order` | Orders a graph's events so each comes after its prerequisites, or says no order exists | `agent`, with `get_prerequisites`; reference `null` |
 
-The input is `{"graph": "g01"}` … `{"graph": "g20"}`. The ids are shuffled
-(seed 580), so an id never hints at the answer. The agent submits
+The input names a graph and lists its events, for example
+`{"graph": "g18", "events": ["G", "J", "N", "R", "T", "W"]}`. The dependencies
+are not in the input: the agent must fetch each event's prerequisites with
+`get_prerequisites`. The graph ids are shuffled (seed 580), so an id never
+hints at the answer. The agent submits
 `{"solvable": true, "order": [...]}`, or `{"solvable": false, "order": []}`
 when no valid order exists. It does not give a reason.
 
 The task has no reference tool. The verifier holds the graphs itself
-(`verifier/data.py`, the one copy of the data, which the tools also read). It
+(`verifier/data.py`, the one copy of the data, which the tool also reads). It
 decides from them whether a valid order exists, so no verdict depends on what a
 tool returned.
 
@@ -69,7 +71,7 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 ├── uv.lock
 ├── .gitignore
 ├── .env             # environment variable NAMEs this plugin needs (none)
-├── src/plugin/      # the MCP server (__main__.py, its IMPLEMENTATIONS) and the tools (graphs.py)
+├── src/plugin/      # the MCP server (__main__.py, its IMPLEMENTATIONS) and the tool (graphs.py)
 ├── tests/           # test_graphs.py (data, tools), test_verifier.py (verifier), generate_graphs.py (seeded graphs)
 ├── ui/              # outputs are drawn from their JSON Schema
 ├── product/         # the product page a catalog shows: product.yaml and icon.svg
@@ -79,8 +81,10 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 How the verifier judges:
 
 - **Each tool call** (`verifier/tools.py`): the output must be exactly what the
-  graph says, i.e. the graph's events, or one event's prerequisites, sorted.
-  An event name must be capital letters.
+  graph says, i.e. the event's prerequisites, sorted. An event name must be
+  capital letters.
+- **The task input** (`verifier/plan.py`): its events must be exactly the
+  graph's events, each once, or the answer fails whatever it is.
 - **The submitted answer** (`verifier/plan.py`). NanoAgent first refuses an
   answer that does not fit `EventOrderOutput`: a missing field, a wrong type,
   null, or an extra field such as a reason.
@@ -131,5 +135,5 @@ To check the plugin against every NanoAgent publishing rule:
 uvx --from "git+https://github.com/RUSH-LAB/nanoagent#subdirectory=nanoagent" nanoagent plugin inspect .
 ```
 
-On RUSH Lab, open the plugin and ask its chat, for example, "Plan the event
-order for graph g18". The result card shows the verifier's verdict.
+On RUSH Lab, open the plugin and ask its chat, for example, "Order the events
+G, J, N, R, T and W of graph g18". The result card shows the verifier's verdict.
