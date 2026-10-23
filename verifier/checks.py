@@ -15,16 +15,6 @@ def result(valid, message, *, score=None, **details):
     }
 
 
-def names_problem(names, what):
-    """What is wrong with a list of event names a tool returns (capital letters, sorted, each once), or None."""
-    bad = [name for name in names if not EVENT.fullmatch(name)]
-    if bad:
-        return f"{what} holds names that are not capital letters: {bad}"
-    if names != sorted(set(names)):
-        return f"{what} must be sorted and name each event once"
-    return None
-
-
 def order_problem(order, events):
     """Details of how ``order`` fails to hold every event of ``events`` exactly once, or None."""
     counts = Counter(order)

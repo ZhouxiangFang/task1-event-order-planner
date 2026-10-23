@@ -15,10 +15,6 @@ dev = ["pytest", "ruff"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-# The bundled event graphs the tools read.
-plugin = ["graphs.json"]
-
 [tool.uv.sources]
 slimconfig = { git = "https://github.com/zeyuyang8/slimconfig", branch = "master" }
 

@@ -1,7 +1,7 @@
-"""How g13, g14 and g20 in src/plugin/graphs.json were made: seeded random layered graphs, g20 with a planted cycle.
+"""How g15, g06 and g01 in verifier/graphs.py were made: seeded random layered graphs, g01 with a planted cycle.
 
 The other 17 graphs are written by hand, one per case (see the README). `uv run python tests/generate_graphs.py`
-prints the three; tests/test_oracle.py checks that graphs.json still holds exactly them.
+prints the three; tests/test_oracle.py checks that verifier/graphs.py still holds exactly them.
 """
 
 import json
@@ -38,17 +38,18 @@ def layered(rng: random.Random, events: list[str], layers: int, extra: int) -> t
 
 
 def generate() -> tuple[dict[str, dict[str, list[str]]], list[str]]:
-    """The three graphs, each event's prerequisites sorted, and g20's planted cycle."""
+    """The three graphs, each event's prerequisites sorted, and g01's planted cycle."""
     rng = random.Random(SEED)
-    g13, _ = layered(rng, names(rng, 16, False), 5, 8)
-    g14, _ = layered(rng, names(rng, 26, True), 7, 16)
-    g20, groups = layered(rng, names(rng, 20, True), 7, 6)
+    medium, _ = layered(rng, names(rng, 16, False), 5, 8)
+    large, _ = layered(rng, names(rng, 26, True), 7, 16)
+    cyclic, groups = layered(rng, names(rng, 20, True), 7, 6)
     # One event of each of layers 1 to 6 in a path, each needing the one before, and the first needing the last.
     cycle = [groups[k][0] for k in range(1, 7)]
     for before, after in pairwise(cycle):
-        g20[after].add(before)
-    g20[cycle[0]].add(cycle[-1])
-    graphs = {"g13": g13, "g14": g14, "g20": g20}
+        cyclic[after].add(before)
+    cyclic[cycle[0]].add(cycle[-1])
+    # Named by the shuffled ids the graphs have in verifier/graphs.py.
+    graphs = {"g15": medium, "g06": large, "g01": cyclic}
     return {
         name: {event: sorted(needs) for event, needs in sorted(graph.items())} for name, graph in graphs.items()
     }, cycle

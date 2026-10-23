@@ -10,7 +10,6 @@ from slimconfig import Output
 class Tool(Enum):
     LIST_EVENTS = "list_events"
     GET_PREREQUISITES = "get_prerequisites"
-    READ_GRAPH = "read_graph"
 
 
 class Task(Enum):
@@ -69,20 +68,6 @@ class PrerequisitesOutput(Output):
 
 
 @dataclass
-class Edge(Output):
-    before: Annotated[str, "The event that must happen first; it may be one the graph does not list"]
-    after: Annotated[str, "The event that needs it"]
-
-
-@dataclass
-class GraphOutput(Output):
-    graph: Annotated[Graph, "The graph, as given"]
-    events: Annotated[list[str], EVENTS]
-    edges: Annotated[list[Edge], "Every prerequisite, sorted by after, then before"]
-    solvable: Annotated[bool, SOLVABLE]
-
-
-@dataclass
 class EventOrderOutput(Output):
     solvable: Annotated[bool, SOLVABLE]
     order: Annotated[
@@ -93,6 +78,5 @@ class EventOrderOutput(Output):
 TOOLS = {
     Tool.LIST_EVENTS: (GraphInput, EventsOutput),
     Tool.GET_PREREQUISITES: (PrerequisitesInput, PrerequisitesOutput),
-    Tool.READ_GRAPH: (GraphInput, GraphOutput),
 }
 TASKS = {Task.PLAN_EVENT_ORDER: (GraphInput, EventOrderOutput)}

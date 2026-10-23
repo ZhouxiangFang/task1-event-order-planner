@@ -10,18 +10,17 @@ from pathlib import Path
 
 import pytest
 from generate_graphs import generate
-from slimconfig import build_output, plain_output
 
 import verifier
-from contract import EventOrderOutput, Graph, GraphInput, GraphOutput
-from plugin.graphs import load_graphs, read_graph
+from contract import EventOrderOutput, Graph, GraphInput
+from verifier.graphs import GRAPHS, has_valid_order
 
-SMALL = [graph for graph in Graph if len(load_graphs()[graph.value]) <= 8]
+SMALL = [graph for graph in Graph if len(GRAPHS[graph.value]) <= 8]
 LARGE = [graph for graph in Graph if graph not in SMALL]
 
 
 def is_valid_order(prerequisites: dict[str, list[str]], order: list[str]) -> bool:
-    """The definition, read straight off graphs.json: every event once, each with all its prerequisites done first."""
+    """The definition, read straight off the data: every event once, each with all its prerequisites done first."""
     if sorted(order) != sorted(prerequisites):
         return False
     done: set[str] = set()
@@ -43,33 +42,32 @@ def graphlib_solvable(prerequisites: dict[str, list[str]]) -> bool:
 
 
 def judge(graph: Graph, tmp_path: Path):
-    """The verifier's verdict on (solvable, order) for ``graph``, against its pinned answer key."""
-    reference = build_output(plain_output(read_graph(GraphInput(graph=graph), tmp_path)), GraphOutput)
+    """The verifier's verdict on (solvable, order) for ``graph``."""
     arguments = GraphInput(graph=graph)
     return lambda solvable, order: verifier.verify_task(
-        "plan-event-order", arguments, EventOrderOutput(solvable=solvable, order=list(order)), reference, str(tmp_path)
+        "plan-event-order", arguments, EventOrderOutput(solvable=solvable, order=list(order)), None, str(tmp_path)
     )
 
 
 @pytest.mark.parametrize("graph", list(Graph))
-def test_the_answer_key_agrees_with_graphlib(graph: Graph, tmp_path: Path) -> None:
-    prerequisites = load_graphs()[graph.value]
-    assert read_graph(GraphInput(graph=graph), tmp_path).solvable is graphlib_solvable(prerequisites)
+def test_the_verifier_s_solvability_agrees_with_graphlib(graph: Graph) -> None:
+    prerequisites = GRAPHS[graph.value]
+    assert has_valid_order(prerequisites) is graphlib_solvable(prerequisites)
 
 
 def test_the_random_graphs_are_the_seeded_generator_s() -> None:
     graphs, cycle = generate()
-    assert graphs == {name: load_graphs()[name] for name in ("g13", "g14", "g20")}
+    assert graphs == {name: GRAPHS[name] for name in ("g01", "g06", "g15")}
     sizes = {name: (len(graph), sum(map(len, graph.values()))) for name, graph in graphs.items()}
-    assert sizes == {"g13": (16, 28), "g14": (26, 51), "g20": (20, 31)}
-    # g20's planted cycle is in the data, each event needing the one before it.
-    g20 = load_graphs()["g20"]
-    assert all(before in g20[after] for before, after in zip(cycle, cycle[1:] + cycle[:1]))
+    assert sizes == {"g15": (16, 28), "g06": (26, 51), "g01": (20, 31)}
+    # g01's planted cycle is in the data, each event needing the one before it.
+    g01 = GRAPHS["g01"]
+    assert all(before in g01[after] for before, after in zip(cycle, cycle[1:] + cycle[:1]))
 
 
 @pytest.mark.parametrize("graph", SMALL)
 def test_the_verifier_accepts_exactly_the_valid_orders_of_a_small_graph(graph: Graph, tmp_path: Path) -> None:
-    prerequisites = load_graphs()[graph.value]
+    prerequisites = GRAPHS[graph.value]
     verify = judge(graph, tmp_path)
     valid = 0
     for order in permutations(prerequisites):
@@ -83,15 +81,15 @@ def test_the_verifier_accepts_exactly_the_valid_orders_of_a_small_graph(graph: G
 
 def test_graphs_have_the_number_of_valid_orders_the_readme_says() -> None:
     def count(name: str) -> int:
-        prerequisites = load_graphs()[name]
+        prerequisites = GRAPHS[name]
         return sum(is_valid_order(prerequisites, list(order)) for order in permutations(prerequisites))
 
-    assert {name: count(name) for name in ("g01", "g02", "g03", "g04", "g10")} == {
-        "g01": 1,
-        "g02": 6,
-        "g03": 1,
-        "g04": 2,
+    assert {name: count(name) for name in ("g03", "g10", "g12", "g17", "g20")} == {
+        "g03": 2,
         "g10": 1,
+        "g12": 1,
+        "g17": 1,
+        "g20": 6,
     }
 
 
@@ -104,11 +102,11 @@ def random_valid_order(prerequisites: dict[str, list[str]], rng: random.Random) 
     return order
 
 
-@pytest.mark.parametrize("graph", [graph for graph in LARGE if graph is not Graph.G20])
+@pytest.mark.parametrize("graph", [graph for graph in LARGE if graph is not Graph.G01])
 def test_the_verifier_agrees_with_the_definition_on_sampled_orders_of_a_large_graph(
     graph: Graph, tmp_path: Path
 ) -> None:
-    prerequisites = load_graphs()[graph.value]
+    prerequisites = GRAPHS[graph.value]
     verify = judge(graph, tmp_path)
     rng = random.Random(580)
     assert verify(True, TopologicalSorter(prerequisites).static_order())["valid"] is True
@@ -122,9 +120,9 @@ def test_the_verifier_agrees_with_the_definition_on_sampled_orders_of_a_large_gr
         assert verify(True, shuffled)["valid"] is is_valid_order(prerequisites, shuffled)
 
 
-def test_graphlib_finds_a_cycle_in_g20(tmp_path: Path) -> None:
+def test_graphlib_finds_a_cycle_in_g01(tmp_path: Path) -> None:
     with pytest.raises(CycleError):
-        tuple(TopologicalSorter(load_graphs()["g20"]).static_order())
-    verify = judge(Graph.G20, tmp_path)
+        tuple(TopologicalSorter(GRAPHS["g01"]).static_order())
+    verify = judge(Graph.G01, tmp_path)
     assert verify(False, [])["valid"] is True
-    assert verify(True, sorted(load_graphs()["g20"]))["valid"] is False
+    assert verify(True, sorted(GRAPHS["g01"]))["valid"] is False
