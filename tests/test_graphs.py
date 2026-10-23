@@ -7,7 +7,8 @@ import pytest
 
 from contract import Graph, GraphInput, PrerequisitesInput
 from plugin.graphs import get_prerequisites, list_events
-from verifier.graphs import GRAPHS, has_valid_order
+from verifier.data import GRAPHS
+from verifier.graphs import has_valid_order
 
 # Worked out by hand from each graph, apart from the code that computes it.
 UNSOLVABLE = {"g01", "g02", "g08", "g09", "g13", "g14"}

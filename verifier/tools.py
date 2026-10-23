@@ -3,7 +3,7 @@
 from contract import Tool
 
 from .checks import EVENT, result
-from .graphs import GRAPHS
+from .data import GRAPHS
 
 
 def verify_input(tool, value):

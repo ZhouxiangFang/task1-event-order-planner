@@ -25,7 +25,7 @@ The input is `{"graph": "g01"}` … `{"graph": "g20"}`. The ids are shuffled
 when no valid order exists. It does not give a reason.
 
 The task has no reference tool. The verifier holds the graphs itself
-(`verifier/graphs.py`, the one copy of the data, which the tools also read). It
+(`verifier/data.py`, the one copy of the data, which the tools also read). It
 decides from them whether a valid order exists, so no verdict depends on what a
 tool returned.
 
@@ -73,7 +73,7 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 ├── tests/           # test_graphs.py (tools, data), test_verifier.py (verifier), test_oracle.py (independent checks), generate_graphs.py
 ├── ui/              # outputs are drawn from their JSON Schema
 ├── product/         # the product page a catalog shows: product.yaml and icon.svg
-└── verifier/        # deterministic verifier: graphs.py (the data), tools.py (each tool call), plan.py (the task)
+└── verifier/        # deterministic verifier: data.py (the graphs), graphs.py (valid order?), tools.py (each tool call), plan.py (the task)
 ```
 
 How the verifier judges:

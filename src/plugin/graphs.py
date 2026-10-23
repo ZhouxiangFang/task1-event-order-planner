@@ -1,11 +1,11 @@
-"""The tools that read the event graphs. The graphs live in verifier/graphs.py, the one copy the verifier also judges by."""
+"""The tools that read the event graphs, from verifier/data.py: the one copy, which the verifier also judges by."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from contract import EventsOutput, GraphInput, PrerequisitesInput, PrerequisitesOutput
-from verifier.graphs import GRAPHS
+from verifier.data import GRAPHS
 
 
 def list_events(given: GraphInput, workspace: Path) -> EventsOutput:

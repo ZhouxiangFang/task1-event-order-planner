@@ -1,7 +1,8 @@
 """The plan-event-order task's check: any order that keeps every prerequisite passes, not one fixed answer."""
 
 from .checks import order_problem, result
-from .graphs import GRAPHS, has_valid_order
+from .data import GRAPHS
+from .graphs import has_valid_order
 
 
 def verify_task(arguments, output, reference, workspace):

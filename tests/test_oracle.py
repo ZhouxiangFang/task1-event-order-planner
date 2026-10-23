@@ -13,7 +13,8 @@ from generate_graphs import generate
 
 import verifier
 from contract import EventOrderOutput, Graph, GraphInput
-from verifier.graphs import GRAPHS, has_valid_order
+from verifier.data import GRAPHS
+from verifier.graphs import has_valid_order
 
 SMALL = [graph for graph in Graph if len(GRAPHS[graph.value]) <= 8]
 LARGE = [graph for graph in Graph if graph not in SMALL]

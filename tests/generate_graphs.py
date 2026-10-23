@@ -1,7 +1,7 @@
-"""How g15, g06 and g01 in verifier/graphs.py were made: seeded random layered graphs, g01 with a planted cycle.
+"""How g15, g06 and g01 in verifier/data.py were made: seeded random layered graphs, g01 with a planted cycle.
 
 The other 17 graphs are written by hand, one per case (see the README). `uv run python tests/generate_graphs.py`
-prints the three; tests/test_oracle.py checks that verifier/graphs.py still holds exactly them.
+prints the three; tests/test_oracle.py checks that verifier/data.py still holds exactly them.
 """
 
 import json
@@ -48,7 +48,7 @@ def generate() -> tuple[dict[str, dict[str, list[str]]], list[str]]:
     for before, after in pairwise(cycle):
         cyclic[after].add(before)
     cyclic[cycle[0]].add(cycle[-1])
-    # Named by the shuffled ids the graphs have in verifier/graphs.py.
+    # Named by the shuffled ids the graphs have in verifier/data.py.
     graphs = {"g15": medium, "g06": large, "g01": cyclic}
     return {
         name: {event: sorted(needs) for event, needs in sorted(graph.items())} for name, graph in graphs.items()

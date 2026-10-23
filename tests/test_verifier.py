@@ -10,7 +10,7 @@ from test_graphs import UNSOLVABLE
 import verifier
 from contract import TOOLS, EventOrderOutput, Graph, GraphInput, PrerequisitesInput, Tool
 from plugin.graphs import get_prerequisites, list_events
-from verifier.graphs import GRAPHS
+from verifier.data import GRAPHS
 
 SOLVABLE = [graph for graph in Graph if graph.value not in UNSOLVABLE]
 NO_ORDER = [graph for graph in Graph if graph.value in UNSOLVABLE]
