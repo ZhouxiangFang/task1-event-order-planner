@@ -66,7 +66,7 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 ├── .gitignore
 ├── .env             # environment variable NAMEs this plugin needs (none)
 ├── src/plugin/      # the MCP server (__main__.py, its IMPLEMENTATIONS), the tools (graphs.py) and the data (graphs.json)
-├── tests/           # test_graphs.py (tools and data), test_verifier.py (the verifier)
+├── tests/           # test_graphs.py (tools, data), test_verifier.py (verifier), test_oracle.py (independent checks), generate_graphs.py
 ├── ui/              # outputs are drawn from their JSON Schema
 ├── product/         # the product page a catalog shows: product.yaml and icon.svg
 └── verifier/        # deterministic verifier: tools.py checks each tool call, plan.py the task
@@ -84,9 +84,21 @@ output:
 
 The verifier uses only the Python standard library: no model, network,
 randomness or file access, so the same answer always gets the same verdict.
-The answer key's `solvable` comes from Kahn's algorithm in
-`src/plugin/graphs.py`. `tests/test_graphs.py` checks it against labels worked
-out by hand for all 20 graphs.
+The data and the verifier are checked by tests that don't rely on the plugin's
+own code (`tests/test_oracle.py`):
+
+- The answer key's `solvable` (Kahn's algorithm in `src/plugin/graphs.py`)
+  matches hand-worked labels and Python's standard `graphlib` for all 20 graphs.
+- 17 graphs have at most 8 events. For each of them, the verifier is run on
+  **every** possible order and must accept exactly the orders that meet the
+  definition: each event once, and all of its prerequisites earlier. For the
+  graphs with no solution, trying every order proves that none exists.
+- For the large graphs g13 and g14, 300 random valid orders must pass. Swapped
+  and shuffled variants must get the same verdict as the definition gives.
+- g13, g14 and g20 come from the seeded generator `tests/generate_graphs.py`
+  (seed 580, with a cycle planted in g20). A test checks that `graphs.json`
+  still holds exactly what it generates. The other 17 graphs are written by
+  hand, one per case.
 
 ## Develop and run
 
