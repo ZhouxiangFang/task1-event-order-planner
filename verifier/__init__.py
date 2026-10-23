@@ -1,4 +1,4 @@
-"""The deterministic verifier: the tools' checks in tools.py, the task's in plan.py, both against graphs.py."""
+"""The deterministic verifier: the tools' checks in tools.py, the task's in plan.py, both against data.py."""
 
 from contract import Task, Tool
 

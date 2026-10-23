@@ -1,8 +1,7 @@
 """The plan-event-order task's check: any order that keeps every prerequisite passes, not one fixed answer."""
 
-from .checks import order_problem, result
+from .checks import has_valid_order, order_problem, result
 from .data import GRAPHS
-from .graphs import has_valid_order
 
 
 def verify_task(arguments, output, reference, workspace):
@@ -17,7 +16,7 @@ def verify_task(arguments, output, reference, workspace):
         return result(True, f"{graph} has no valid order, as the answer says")
     if not output.solvable:
         return result(False, f"{graph} has a valid order, but the answer says it has none")
-    problem = order_problem(output.order, prerequisites)
+    problem = order_problem(output.order, list(prerequisites))
     if problem:
         return result(False, problem.pop("message"), **problem)
     position = {event: index for index, event in enumerate(output.order)}

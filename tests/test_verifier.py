@@ -1,74 +1,78 @@
+"""The verifier, called as NanoAgent's sandbox calls it, with contract instances built from JSON: every answer to the
+task and every tool output, judged against the definition of a valid order and the data."""
+
 from __future__ import annotations
 
+import random
 from itertools import permutations
 from pathlib import Path
 
 import pytest
 from slimconfig import build_output, plain_output
-from test_graphs import UNSOLVABLE
+from test_graphs import UNSOLVABLE, an_order, is_valid_order
 
 import verifier
 from contract import TOOLS, EventOrderOutput, Graph, GraphInput, PrerequisitesInput, Tool
 from plugin.graphs import get_prerequisites, list_events
 from verifier.data import GRAPHS
 
-SOLVABLE = [graph for graph in Graph if graph.value not in UNSOLVABLE]
-NO_ORDER = [graph for graph in Graph if graph.value in UNSOLVABLE]
+SMALL = [graph for graph in Graph if len(GRAPHS[graph.value]) <= 8]
+LARGE_SOLVABLE = [graph for graph in Graph if graph not in SMALL and graph.value not in UNSOLVABLE]
 
 
-# The verifier gets contract instances, as NanoAgent's sandbox builds them from JSON; the task has no reference.
-def verify(graph: Graph, solvable: bool, order: list[str], workspace: Path) -> dict:
-    output = build_output({"solvable": solvable, "order": order}, EventOrderOutput)
+def verify(graph: Graph, solvable: bool, order, workspace: Path) -> dict:
+    """The verdict on an answer; the task has no reference tool."""
+    output = build_output({"solvable": solvable, "order": list(order)}, EventOrderOutput)
     arguments = build_output({"graph": graph.value}, GraphInput)
     return verifier.verify_task("plan-event-order", arguments, output, None, str(workspace))
 
 
-def an_order(graph: Graph, pick) -> list[str]:
-    """A valid order of ``graph``, taking ``pick`` of the events whose prerequisites are all placed."""
+@pytest.mark.parametrize("graph", SMALL)
+def test_accepts_exactly_the_valid_orders_of_a_small_graph(graph: Graph, tmp_path: Path) -> None:
+    # Every order of each graph of at most 8 events; for a graph with none valid, this proves it has none.
     prerequisites = GRAPHS[graph.value]
-    order: list[str] = []
-    while len(order) < len(prerequisites):
-        ready = [e for e, needs in prerequisites.items() if e not in order and set(needs) <= set(order)]
-        order.append(pick(ready))
-    return order
+    valid = 0
+    for order in permutations(prerequisites):
+        expected = is_valid_order(prerequisites, list(order))
+        valid += expected
+        assert verify(graph, True, order, tmp_path)["valid"] is expected, order
+    assert (valid > 0) is (graph.value not in UNSOLVABLE)
 
 
-@pytest.mark.parametrize("graph", SOLVABLE)
-def test_approves_any_order_that_keeps_every_prerequisite(graph: Graph, tmp_path: Path) -> None:
-    for order in (an_order(graph, min), an_order(graph, max)):
-        verdict = verify(graph, True, order, tmp_path)
-        assert verdict["valid"] is True and verdict["score"] == 1.0, verdict
+@pytest.mark.parametrize("graph", LARGE_SOLVABLE)
+def test_agrees_with_the_definition_on_sampled_orders_of_a_large_graph(graph: Graph, tmp_path: Path) -> None:
+    prerequisites = GRAPHS[graph.value]
+    rng = random.Random(580)
+    for _ in range(300):
+        order = an_order(prerequisites, rng.choice)
+        assert verify(graph, True, order, tmp_path)["valid"] is True
+        i = rng.randrange(len(order) - 1)
+        swapped = order[:i] + [order[i + 1], order[i]] + order[i + 2 :]
+        assert verify(graph, True, swapped, tmp_path)["valid"] is is_valid_order(prerequisites, swapped)
+        shuffled = rng.sample(order, len(order))
+        assert verify(graph, True, shuffled, tmp_path)["valid"] is is_valid_order(prerequisites, shuffled)
 
 
-def test_graphs_with_many_valid_orders_accept_each_of_them(tmp_path: Path) -> None:
-    assert an_order(Graph.G03, min) != an_order(Graph.G03, max)
-    assert all(verify(Graph.G20, True, list(order), tmp_path)["valid"] for order in permutations(["AF", "B", "Q"]))
-
-
-@pytest.mark.parametrize("graph", NO_ORDER)
-def test_approves_saying_no_order_exists_only_when_none_does(graph: Graph, tmp_path: Path) -> None:
-    assert verify(graph, False, [], tmp_path)["valid"] is True
-    events = sorted(GRAPHS[graph.value])
-    assert verify(graph, True, events, tmp_path)["valid"] is False
-    assert verify(graph, True, [], tmp_path)["valid"] is False
-    verdict = verify(graph, False, events, tmp_path)
-    assert verdict["valid"] is False and "empty" in verdict["message"]
-
-
-@pytest.mark.parametrize("graph", SOLVABLE)
-def test_refuses_saying_no_order_exists_when_one_does(graph: Graph, tmp_path: Path) -> None:
+@pytest.mark.parametrize("graph", list(Graph))
+def test_accepts_no_solution_only_for_a_graph_without_a_valid_order(graph: Graph, tmp_path: Path) -> None:
+    none = graph.value in UNSOLVABLE
     verdict = verify(graph, False, [], tmp_path)
-    assert verdict["valid"] is False and verdict["score"] == 0.0
+    assert verdict["valid"] is none and verdict["score"] == float(none)
+    if none:
+        events = sorted(GRAPHS[graph.value])
+        assert verify(graph, True, events, tmp_path)["valid"] is False
+        assert verify(graph, True, [], tmp_path)["valid"] is False
+        verdict = verify(graph, False, events, tmp_path)
+        assert verdict["valid"] is False and "empty" in verdict["message"]
 
 
-def test_refuses_an_order_that_breaks_a_prerequisite_with_partial_credit(tmp_path: Path) -> None:
+def test_gives_partial_credit_for_an_order_that_breaks_some_prerequisites(tmp_path: Path) -> None:
     # g10 is the chain M C X A P H: swapping X and A breaks one of its five prerequisites.
-    assert verify(Graph.G10, True, ["M", "C", "X", "A", "P", "H"], tmp_path)["valid"] is True
     verdict = verify(Graph.G10, True, ["M", "C", "A", "X", "P", "H"], tmp_path)
     assert verdict["valid"] is False and verdict["score"] == pytest.approx(0.8)
     assert verdict["details"]["broken"] == ["X before A"]
     # Alphabetical order is no shortcut.
-    assert verify(Graph.G10, True, sorted(["M", "C", "X", "A", "P", "H"]), tmp_path)["valid"] is False
+    assert verify(Graph.G10, True, ["A", "C", "H", "M", "P", "X"], tmp_path)["valid"] is False
     reverse = verify(Graph.G19, True, ["U", "V", "W", "X", "Y", "Z"], tmp_path)
     assert reverse["valid"] is False and reverse["score"] == 0.0
 
@@ -87,6 +91,15 @@ def test_refuses_an_order_that_is_not_every_event_once(order, field, names, tmp_
     verdict = verify(Graph.G03, True, order, tmp_path)
     assert verdict["valid"] is False and verdict["score"] == 0.0
     assert verdict["details"][field] == names
+
+
+def test_boundary_graphs(tmp_path: Path) -> None:
+    assert verify(Graph.G17, True, ["K"], tmp_path)["valid"] is True  # one event
+    assert verify(Graph.G17, True, ["K", "K"], tmp_path)["valid"] is False
+    assert verify(Graph.G20, True, ["Q", "AF", "B"], tmp_path)["valid"] is True  # no prerequisites at all
+    assert verify(Graph.G12, True, ["D", "K", "P", "AE"], tmp_path)["valid"] is True  # the only valid order
+    assert verify(Graph.G13, False, [], tmp_path)["valid"] is True  # an event needs itself
+    assert verify(Graph.G02, False, [], tmp_path)["valid"] is True  # a prerequisite the graph lacks
 
 
 @pytest.mark.parametrize(
@@ -118,22 +131,8 @@ def test_a_malformed_task_input_is_refused(arguments: dict) -> None:
         build_output(arguments, GraphInput)
 
 
-def test_boundary_graphs(tmp_path: Path) -> None:
-    assert verify(Graph.G17, True, ["K"], tmp_path)["valid"] is True  # one event
-    assert verify(Graph.G17, True, ["K", "K"], tmp_path)["valid"] is False
-    assert verify(Graph.G12, True, ["D", "K", "P", "AE"], tmp_path)["valid"] is True  # the only order
-    assert verify(Graph.G12, True, ["D", "P", "K", "AE"], tmp_path)["valid"] is False
-    assert verify(Graph.G13, False, [], tmp_path)["valid"] is True  # an event needs itself
-    assert verify(Graph.G02, False, [], tmp_path)["valid"] is True  # a prerequisite the graph lacks
-    assert verify(Graph.G02, True, ["A", "B", "C", "D"], tmp_path)["valid"] is False
-
-
-def test_the_same_answer_always_gets_the_same_verdict(tmp_path: Path) -> None:
-    order = an_order(Graph.G06, max)
-    assert verify(Graph.G06, True, order, tmp_path) == verify(Graph.G06, True, list(order), tmp_path)
-
-
 def check(tool: str, value: dict, output: dict | None = None) -> bool:
+    """Whether verify_input (without ``output``) or verify_output (with it) approves a tool call."""
     given, made = TOOLS[Tool(tool)]
     if output is None:
         return verifier.verify_input(tool, build_output(value, given))["valid"]
@@ -152,11 +151,8 @@ def test_approves_every_true_tool_output(graph: Graph, tmp_path: Path) -> None:
     assert check("list_events", {"graph": graph.value}, events) is True
     for event in events["events"]:
         given = {"graph": graph.value, "event": event}
-        assert check(
-            "get_prerequisites",
-            given,
-            plain_output(get_prerequisites(build_output(given, PrerequisitesInput), tmp_path)),
-        )
+        output = plain_output(get_prerequisites(build_output(given, PrerequisitesInput), tmp_path))
+        assert check("get_prerequisites", given, output) is True
 
 
 @pytest.mark.parametrize(

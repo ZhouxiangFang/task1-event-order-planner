@@ -1,7 +1,7 @@
 """How g15, g06 and g01 in verifier/data.py were made: seeded random layered graphs, g01 with a planted cycle.
 
 The other 17 graphs are written by hand, one per case (see the README). `uv run python tests/generate_graphs.py`
-prints the three; tests/test_oracle.py checks that verifier/data.py still holds exactly them.
+prints the three; tests/test_graphs.py checks that verifier/data.py still holds exactly them.
 """
 
 import json

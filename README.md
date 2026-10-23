@@ -70,10 +70,10 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 ├── .gitignore
 ├── .env             # environment variable NAMEs this plugin needs (none)
 ├── src/plugin/      # the MCP server (__main__.py, its IMPLEMENTATIONS) and the tools (graphs.py)
-├── tests/           # test_graphs.py (tools, data), test_verifier.py (verifier), test_oracle.py (independent checks), generate_graphs.py
+├── tests/           # test_graphs.py (data, tools), test_verifier.py (verifier), generate_graphs.py (seeded graphs)
 ├── ui/              # outputs are drawn from their JSON Schema
 ├── product/         # the product page a catalog shows: product.yaml and icon.svg
-└── verifier/        # deterministic verifier: data.py (the graphs), graphs.py (valid order?), tools.py (each tool call), plan.py (the task)
+└── verifier/        # deterministic verifier: data.py (the graphs), checks.py, tools.py (each tool call), plan.py (the task)
 ```
 
 How the verifier judges:
@@ -97,10 +97,10 @@ The verifier uses only the Python standard library: no model, network,
 randomness or file access, so the same answer always gets the same verdict.
 
 The data and the verifier are checked by tests that don't rely on the
-verifier's own code (`tests/test_oracle.py`):
+verifier's own code:
 
 - Whether each graph has a valid order (Kahn's algorithm in
-  `verifier/graphs.py`) matches hand-worked labels and Python's standard
+  `verifier/checks.py`) matches hand-worked labels and Python's standard
   `graphlib` for all 20 graphs.
 - 17 graphs have at most 8 events. For each of them, the verifier is run on
   **every** possible order and must accept exactly the orders that meet the
