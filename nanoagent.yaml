@@ -1,0 +1,37 @@
+_ > nanoagent.plugin.v0001.ManifestConfig:
+id: task1-event-order-planner
+name: Task1 Event Order Planner
+version: 0.1.0
+status: ready
+spec: nanoagent.plugin/v0001
+
+runtime > nanoagent.plugin.v0001.RuntimeConfig:
+  type: mcp_stdio
+  command: [uv, run, --frozen, python, -m, plugin]
+
+permissions > nanoagent.plugin.v0001.PermissionsConfig:
+  network > nanoagent.plugin.v0001.NetworkConfig:
+    hosts: []
+  filesystem > nanoagent.plugin.v0001.FilesystemConfig:
+    write: [workspace]
+
+# One entry per contract.Tool; its input and output classes are contract.TOOLS's.
+tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
+  list_events:
+    description: List every event of a bundled event graph, sorted by name
+  get_prerequisites:
+    description: Give the events that must happen before one event of a bundled graph
+  read_graph:
+    description: Give a bundled graph's every event and prerequisite, and whether it has a valid order (the answer key)
+
+# One entry per contract.Task; its input class is contract.TASKS's.
+tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
+  plan-event-order:
+    description: Order a graph's events so each comes after its prerequisites, or say no order exists
+    runner: agent
+    tools: [list_events, get_prerequisites]
+    reference: read_graph
+    instructions: |-
+      Call list_events for the graph, then get_prerequisites for every event it lists. An event may happen only after all of its prerequisites.
+      If some order has every listed event exactly once, each after all of its prerequisites, submit solvable true and that order. Any such order is accepted.
+      If no such order exists (the prerequisites form a cycle, an event needs itself, or an event needs one that list_events does not list), submit solvable false and an empty order.

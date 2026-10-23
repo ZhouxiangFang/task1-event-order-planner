@@ -1,0 +1,11 @@
+_ > nanoagent.plugin.v0001.ProductConfig:
+tagline: "Put events in an order that keeps every prerequisite"
+summary: "Pick one of twenty bundled event graphs. The agent reads each event's prerequisites and returns an order in which every event comes after everything it needs, or says that no such order exists. A deterministic verifier checks the answer."
+highlights:
+  - "Any valid order passes: the verifier checks the prerequisites, not one fixed answer"
+  - "Twenty graphs, from a single event to cycles, self-loops and missing prerequisites"
+  - "No model and no network in the verifier: the same answer always gets the same verdict"
+steps:
+  - "Ask it to plan the event order for a graph, such as g05"
+  - "The agent lists the graph's events and reads each one's prerequisites"
+  - "It returns an order, or says none exists, and the verifier judges it"
