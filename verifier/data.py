@@ -6,7 +6,7 @@ answer. Three graphs (g01, g06, g15) come from tests/generate_graphs.py; the res
 """
 
 GRAPHS = {
-    # no valid order: a cycle of six hidden among 20 events
+    # no valid order: a planted cycle of six that closes 11 cycles through 12 of its 20 events
     "g01": {
         "AW": [],
         "DB": ["XT"],

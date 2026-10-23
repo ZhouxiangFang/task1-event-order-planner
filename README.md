@@ -36,7 +36,7 @@ Events are named by capital letters, not always consecutive (`B`, `Q`, `AF`, `PC
 
 | Graph | Prerequisites | Case | Valid order? |
 |---|---|---|---|
-| g01 | 20 events, 31 edges; OJ→TY→UO→GH→WG→RM→OJ | cycle of six hidden in a large graph | **no** |
+| g01 | 20 events, 31 edges; planted cycle OJ→TY→UO→GH→WG→RM→OJ | cycles hidden in a large graph: 11 of them, through 12 events | **no** |
 | g02 | A→B→C, G→C, D; G is not listed | missing prerequisite | **no** |
 | g03 | S→H, S→AB, H→E, AB→E | diamond; two valid orders | yes |
 | g04 | AC→AA, PC→AA, XX→BQ, AA→ZB, BQ→ZB | two-letter names | yes |
