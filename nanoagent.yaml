@@ -18,16 +18,19 @@ permissions > nanoagent.plugin.v0001.PermissionsConfig:
 # One entry per contract.Tool; its input and output classes are contract.TOOLS's.
 tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
   get_prerequisites:
-    description: Give the events that must happen before one event of a bundled graph
+    description: |-
+      Look up the direct prerequisites of one event. Set graph to the graph ID from the task input and event to an exact event name from its events list.
+      Returns {"event": "<requested event>", "prerequisites": ["<event name>", ...]}. Every returned prerequisite must appear strictly before the requested event in your final order. The list is sorted by name; an empty list means this event has no prerequisites.
+      For example, {"event": "E", "prerequisites": ["AB", "H"]} means both AB and H must occur before E. Call this tool for every event in the task input to obtain all ordering constraints.
+      A prerequisite may name the event itself or an event absent from the task input; either makes a valid order impossible. Requesting an event absent from the graph returns an error.
 
 # One entry per contract.Task; its input class is contract.TASKS's.
 tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
   plan-event-order:
-    description: Order a graph's events so each comes after its prerequisites, or say no order exists
+    description: Find a valid event order that satisfies all prerequisites, or determine that no valid order exists
     runner: agent
     tools: [get_prerequisites]
     reference: null
     instructions: |-
-      The input names the graph and lists all of its events. Call get_prerequisites for every listed event: an event may happen only after all of its prerequisites.
-      If some order has every listed event exactly once, each after all of its prerequisites, submit solvable true and that order. Any such order is accepted.
-      If no such order exists (the prerequisites form a cycle, an event needs itself, or an event needs one the input does not list), submit solvable false and an empty order.
+      Use get_prerequisites to read every listed event's prerequisites. Find any order containing every listed event exactly once, with all prerequisites strictly before their dependent events.
+      Call submit with {"solvable": true, "order": [...]} for a valid order, or {"solvable": false, "order": []} if none exists.

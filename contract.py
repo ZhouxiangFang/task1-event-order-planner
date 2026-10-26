@@ -51,14 +51,18 @@ class PlanInput(Output):
 
 @dataclass
 class PrerequisitesInput(Output):
-    graph: Annotated[Graph, GRAPH]
-    event: Annotated[str, "One event of the graph, as the task lists it"]
+    graph: Annotated[Graph, "The graph ID from the task input; use the same ID for every prerequisite lookup"]
+    event: Annotated[str, "The exact, case-sensitive name of one event from the task input's events list"]
 
 
 @dataclass
 class PrerequisitesOutput(Output):
-    event: Annotated[str, "The event, as given"]
-    prerequisites: Annotated[list[str], "The events that must happen before it, sorted by name; empty when it has none"]
+    event: Annotated[str, "The requested event name, unchanged"]
+    prerequisites: Annotated[
+        list[str],
+        "Direct prerequisites, sorted by name: each must appear strictly before the requested event. "
+        "Empty means no prerequisites. May include the event itself or a name absent from the task's events list.",
+    ]
 
 
 @dataclass
