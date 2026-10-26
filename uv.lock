@@ -337,7 +337,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nanoagent-task1-event-order-planner"
+name = "nanoagent-event-order-planner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

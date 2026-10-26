@@ -15,7 +15,7 @@ from slimconfig import build_output, output_schema, plain_output
 from contract import TOOLS, Tool
 from plugin import get_prerequisites
 
-server = Server("task1-event-order-planner")
+server = Server("event-order-planner")
 # NanoAgent names the one folder this plugin may write to.
 WORKSPACE_ENV = "NANOAGENT_WORKSPACE"
 # Each tool's implementation: (its input, the workspace) -> its output, as contract.TOOLS types them.

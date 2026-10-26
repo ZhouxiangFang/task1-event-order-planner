@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nanoagent-task1-event-order-planner"
+name = "nanoagent-event-order-planner"
 version = "0.1.0"
 description = "Order events so each comes after its prerequisites: a NanoAgent plugin"
 requires-python = ">=3.12"

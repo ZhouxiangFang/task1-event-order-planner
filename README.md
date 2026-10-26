@@ -1,4 +1,4 @@
-# Task1 Event Order Planner
+# Event Order Planner
 
 A `nanoagent.plugin/v0001` plugin. The agent is given one of 20 bundled event
 graphs and its events. It looks up each event's prerequisites with a tool, then

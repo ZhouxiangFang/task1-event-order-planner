@@ -1,6 +1,6 @@
 _ > nanoagent.plugin.v0001.ManifestConfig:
-id: task1-event-order-planner
-name: Task1 Event Order Planner
+id: event-order-planner
+name: Event Order Planner
 version: 0.1.0
 status: ready
 spec: nanoagent.plugin/v0001
