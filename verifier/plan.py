@@ -1,23 +1,27 @@
 """The plan-event-order task's check: any order that keeps every prerequisite passes, not one fixed answer."""
 
+from contract import Status
+
 from .checks import has_valid_order, order_problem, result
 from .data import GRAPHS
 
 
 def verify_task(arguments, output, reference, workspace):
     """``output``: a contract EventOrderOutput, judged against the graph itself (the task has no reference tool)."""
-    graph = arguments.graph.value
-    prerequisites = GRAPHS[graph]
-    if sorted(arguments.events) != sorted(prerequisites):
-        return result(False, f"the task's events are not those of {graph}", given=arguments.events)
-    if not has_valid_order(prerequisites):
-        if output.solvable:
-            return result(False, f"{graph} has no valid order, but the answer gives one")
+    graph = arguments.graph
+    prerequisites = GRAPHS.get(graph)
+    if prerequisites is None:
+        expected, fact = Status.NO_GRAPH_FOUND, f"there is no graph named {graph!r}"
+    elif not has_valid_order(prerequisites):
+        expected, fact = Status.NO_VALID_ORDER, f"{graph} has no valid order"
+    else:
+        expected, fact = Status.ORDERED, f"{graph} has a valid order"
+    if output.status is not expected:
+        return result(False, f"{fact}, but the answer says {output.status.value}")
+    if expected is not Status.ORDERED:
         if output.order:
-            return result(False, "the order must be empty when solvable is false", order=output.order)
-        return result(True, f"{graph} has no valid order, as the answer says")
-    if not output.solvable:
-        return result(False, f"{graph} has a valid order, but the answer says it has none")
+            return result(False, "the order must be empty unless status is ordered", order=output.order)
+        return result(True, f"{fact}, as the answer says")
     problem = order_problem(output.order, list(prerequisites))
     if problem:
         return result(False, problem.pop("message"), **problem)

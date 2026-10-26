@@ -1,23 +1,26 @@
 # Event Order Planner
 
-A `nanoagent.plugin/v0001` plugin. The agent is given one of 20 bundled event
-graphs and its events. It looks up each event's prerequisites with a tool, then
-returns an order in which every event comes after all of its prerequisites, or
-says that no such order exists. A deterministic verifier, with no model, accepts
-any order that keeps every prerequisite.
+A `nanoagent.plugin/v0001` plugin. The agent is given the name of one of 20
+bundled event graphs. It lists the graph's events, looks up each event's
+prerequisites, then returns an order in which every event comes after all of its
+prerequisites, or says that no such order exists, or that no graph has that
+name. A deterministic verifier, with no model, accepts any order that keeps
+every prerequisite.
 
 ## Tools
 
 | Tool | Does |
 |---|---|
+| `list_events` | Gives every event of a graph; fails with "no graph found" for a name no graph has |
 | `get_prerequisites` | Gives the events that must happen before one event of a graph |
 
 | Task | Does |
 |---|---|
-| `plan-event-order` | Orders a graph's events so each comes after its prerequisites, or says no order exists. Runner `agent`, with `get_prerequisites` |
+| `plan-event-order` | Orders a graph's events so each comes after its prerequisites, or says no order exists or no graph has that name. Runner `agent`, with `list_events` and `get_prerequisites` |
 
-Input: `{"graph": "g18", "events": ["G", "J", "N", "R", "T", "W"]}`.
-Output: `{"solvable": true, "order": [...]}`, or `{"solvable": false, "order": []}`.
+Input: `{"graph": "g18"}`, a name from `g01` to `g20`.
+Output: `{"status": "ordered", "order": [...]}`, `{"status": "no_valid_order", "order": []}`,
+or `{"status": "no_graph_found", "order": []}`.
 
 ## Layout
 
@@ -50,5 +53,5 @@ To check the plugin against every NanoAgent publishing rule:
 uvx --from "git+https://github.com/RUSH-LAB/nanoagent#subdirectory=nanoagent" nanoagent plugin inspect .
 ```
 
-On RUSH Lab, open the plugin and ask its chat, for example, "Order the events
-G, J, N, R, T and W of graph g18". The result card shows the verifier's verdict.
+On RUSH Lab, open the plugin and ask its chat, for example, "Order the events of
+graph g18". The result card shows the verifier's verdict.

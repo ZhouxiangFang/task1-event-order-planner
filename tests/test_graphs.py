@@ -1,5 +1,5 @@
 """The data and the tools: every graph well formed, whether it has a valid order worked out three ways (by hand, by the
-verifier's Kahn's algorithm and by Python's graphlib), the seeded graphs reproducible, and the tool true to the data."""
+verifier's Kahn's algorithm and by Python's graphlib), the seeded graphs reproducible, and the tools true to the data."""
 
 from __future__ import annotations
 
@@ -11,13 +11,16 @@ from pathlib import Path
 import pytest
 from generate_graphs import generate
 
-from contract import Graph, PrerequisitesInput
-from plugin.graphs import get_prerequisites
+from contract import EventsInput, PrerequisitesInput
+from plugin.graphs import get_prerequisites, list_events
 from verifier.checks import has_valid_order
 from verifier.data import GRAPHS
 
+NAMES = sorted(GRAPHS)
 # Worked out by hand from each graph, apart from the code that computes it.
 UNSOLVABLE = {"g01", "g02", "g08", "g09", "g13", "g14"}
+# Names no bundled graph has: out of range, the wrong case, unpadded, padded with spaces, or empty.
+UNKNOWN = ["g00", "g21", "g99", "G03", "g3", " g03", "graph g03", ""]
 
 
 def is_valid_order(prerequisites: dict[str, list[str]], order: list[str]) -> bool:
@@ -50,18 +53,18 @@ def graphlib_solvable(prerequisites: dict[str, list[str]]) -> bool:
     return True
 
 
-def test_has_one_well_formed_graph_per_contract_graph() -> None:
-    assert sorted(GRAPHS) == sorted(graph.value for graph in Graph) and len(GRAPHS) == 20
+def test_has_twenty_well_formed_graphs_named_g01_to_g20() -> None:
+    assert NAMES == [f"g{number:02d}" for number in range(1, 21)]
     for prerequisites in GRAPHS.values():
         for event, needs in prerequisites.items():
             assert re.fullmatch(r"[A-Z]+", event) and all(re.fullmatch(r"[A-Z]+", needed) for needed in needs)
             assert needs == sorted(set(needs))
 
 
-@pytest.mark.parametrize("graph", list(Graph))
-def test_knows_which_graphs_have_a_valid_order(graph: Graph) -> None:
-    prerequisites = GRAPHS[graph.value]
-    assert has_valid_order(prerequisites) is graphlib_solvable(prerequisites) is (graph.value not in UNSOLVABLE)
+@pytest.mark.parametrize("graph", NAMES)
+def test_knows_which_graphs_have_a_valid_order(graph: str) -> None:
+    prerequisites = GRAPHS[graph]
+    assert has_valid_order(prerequisites) is graphlib_solvable(prerequisites) is (graph not in UNSOLVABLE)
 
 
 def test_the_random_graphs_are_the_seeded_generator_s() -> None:
@@ -86,15 +89,29 @@ def test_graphs_have_the_number_of_valid_orders_the_readme_says() -> None:
     }
 
 
+@pytest.mark.parametrize("graph", NAMES)
+def test_lists_every_event_of_a_graph(graph: str, tmp_path: Path) -> None:
+    listed = list_events(EventsInput(graph=graph), tmp_path)
+    assert listed.graph == graph and listed.events == sorted(GRAPHS[graph])
+
+
 def test_gives_each_event_s_prerequisites(tmp_path: Path) -> None:
-    assert get_prerequisites(PrerequisitesInput(graph=Graph.G03, event="E"), tmp_path).prerequisites == ["AB", "H"]
-    assert get_prerequisites(PrerequisitesInput(graph=Graph.G03, event="S"), tmp_path).prerequisites == []
+    assert get_prerequisites(PrerequisitesInput(graph="g03", event="E"), tmp_path).prerequisites == ["AB", "H"]
+    assert get_prerequisites(PrerequisitesInput(graph="g03", event="S"), tmp_path).prerequisites == []
+
+
+@pytest.mark.parametrize("name", UNKNOWN)
+def test_says_no_graph_found_for_a_name_no_graph_has(name: str, tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="no graph found"):
+        list_events(EventsInput(graph=name), tmp_path)
+    with pytest.raises(ValueError, match="no graph found"):
+        get_prerequisites(PrerequisitesInput(graph=name, event="A"), tmp_path)
 
 
 def test_refuses_an_event_the_graph_does_not_list(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="not an event of g03"):
-        get_prerequisites(PrerequisitesInput(graph=Graph.G03, event="Z"), tmp_path)
+        get_prerequisites(PrerequisitesInput(graph="g03", event="Z"), tmp_path)
     # g02's C needs G, which the graph does not list.
-    assert "G" in get_prerequisites(PrerequisitesInput(graph=Graph.G02, event="C"), tmp_path).prerequisites
+    assert "G" in get_prerequisites(PrerequisitesInput(graph="g02", event="C"), tmp_path).prerequisites
     with pytest.raises(ValueError, match="not an event of g02"):
-        get_prerequisites(PrerequisitesInput(graph=Graph.G02, event="G"), tmp_path)
+        get_prerequisites(PrerequisitesInput(graph="g02", event="G"), tmp_path)

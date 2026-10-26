@@ -9,72 +9,85 @@ from pathlib import Path
 
 import pytest
 from slimconfig import build_output, plain_output
-from test_graphs import UNSOLVABLE, an_order, is_valid_order
+from test_graphs import NAMES, UNKNOWN, UNSOLVABLE, an_order, is_valid_order
 
 import verifier
-from contract import TOOLS, EventOrderOutput, Graph, PlanInput, PrerequisitesInput, Tool
-from plugin.graphs import get_prerequisites
+from contract import TOOLS, EventOrderOutput, EventsInput, PlanInput, PrerequisitesInput, Tool
+from plugin.graphs import get_prerequisites, list_events
 from verifier.data import GRAPHS
 
-SMALL = [graph for graph in Graph if len(GRAPHS[graph.value]) <= 8]
-LARGE_SOLVABLE = [graph for graph in Graph if graph not in SMALL and graph.value not in UNSOLVABLE]
+SMALL = [graph for graph in NAMES if len(GRAPHS[graph]) <= 8]
+LARGE_SOLVABLE = [graph for graph in NAMES if graph not in SMALL and graph not in UNSOLVABLE]
+G03 = ["S", "AB", "H", "E"]  # a valid order of g03
 
 
-def verify(graph: Graph, solvable: bool, order, workspace: Path, events: list[str] | None = None) -> dict:
-    """The verdict on an answer to the task for ``graph`` (its own events unless ``events``); there is no reference."""
-    output = build_output({"solvable": solvable, "order": list(order)}, EventOrderOutput)
-    given = sorted(GRAPHS[graph.value]) if events is None else events
-    arguments = build_output({"graph": graph.value, "events": given}, PlanInput)
+def verify(graph: str, status: str, order, workspace: Path) -> dict:
+    """The verdict on an answer to the task for the graph named ``graph``; there is no reference."""
+    output = build_output({"status": status, "order": list(order)}, EventOrderOutput)
+    arguments = build_output({"graph": graph}, PlanInput)
     return verifier.verify_task("plan-event-order", arguments, output, None, str(workspace))
 
 
 @pytest.mark.parametrize("graph", SMALL)
-def test_accepts_exactly_the_valid_orders_of_a_small_graph(graph: Graph, tmp_path: Path) -> None:
+def test_accepts_exactly_the_valid_orders_of_a_small_graph(graph: str, tmp_path: Path) -> None:
     # Every order of each graph of at most 8 events; for a graph with none valid, this proves it has none.
-    prerequisites = GRAPHS[graph.value]
+    prerequisites = GRAPHS[graph]
     valid = 0
     for order in permutations(prerequisites):
         expected = is_valid_order(prerequisites, list(order))
         valid += expected
-        assert verify(graph, True, order, tmp_path)["valid"] is expected, order
-    assert (valid > 0) is (graph.value not in UNSOLVABLE)
+        assert verify(graph, "ordered", order, tmp_path)["valid"] is expected, order
+    assert (valid > 0) is (graph not in UNSOLVABLE)
 
 
 @pytest.mark.parametrize("graph", LARGE_SOLVABLE)
-def test_agrees_with_the_definition_on_sampled_orders_of_a_large_graph(graph: Graph, tmp_path: Path) -> None:
-    prerequisites = GRAPHS[graph.value]
+def test_agrees_with_the_definition_on_sampled_orders_of_a_large_graph(graph: str, tmp_path: Path) -> None:
+    prerequisites = GRAPHS[graph]
     rng = random.Random(580)
     for _ in range(300):
         order = an_order(prerequisites, rng.choice)
-        assert verify(graph, True, order, tmp_path)["valid"] is True
+        assert verify(graph, "ordered", order, tmp_path)["valid"] is True
         i = rng.randrange(len(order) - 1)
         swapped = order[:i] + [order[i + 1], order[i]] + order[i + 2 :]
-        assert verify(graph, True, swapped, tmp_path)["valid"] is is_valid_order(prerequisites, swapped)
+        assert verify(graph, "ordered", swapped, tmp_path)["valid"] is is_valid_order(prerequisites, swapped)
         shuffled = rng.sample(order, len(order))
-        assert verify(graph, True, shuffled, tmp_path)["valid"] is is_valid_order(prerequisites, shuffled)
+        assert verify(graph, "ordered", shuffled, tmp_path)["valid"] is is_valid_order(prerequisites, shuffled)
 
 
-@pytest.mark.parametrize("graph", list(Graph))
-def test_accepts_no_solution_only_for_a_graph_without_a_valid_order(graph: Graph, tmp_path: Path) -> None:
-    none = graph.value in UNSOLVABLE
-    verdict = verify(graph, False, [], tmp_path)
+@pytest.mark.parametrize("graph", NAMES)
+def test_accepts_no_valid_order_only_for_a_graph_without_one(graph: str, tmp_path: Path) -> None:
+    none = graph in UNSOLVABLE
+    verdict = verify(graph, "no_valid_order", [], tmp_path)
     assert verdict["valid"] is none and verdict["score"] == float(none)
+    # A bundled graph is never "no graph found".
+    assert verify(graph, "no_graph_found", [], tmp_path)["valid"] is False
     if none:
-        events = sorted(GRAPHS[graph.value])
-        assert verify(graph, True, events, tmp_path)["valid"] is False
-        assert verify(graph, True, [], tmp_path)["valid"] is False
-        verdict = verify(graph, False, events, tmp_path)
+        events = sorted(GRAPHS[graph])
+        assert verify(graph, "ordered", events, tmp_path)["valid"] is False
+        assert verify(graph, "ordered", [], tmp_path)["valid"] is False
+        verdict = verify(graph, "no_valid_order", events, tmp_path)
         assert verdict["valid"] is False and "empty" in verdict["message"]
+
+
+@pytest.mark.parametrize("name", UNKNOWN)
+def test_accepts_no_graph_found_only_for_a_name_no_graph_has(name: str, tmp_path: Path) -> None:
+    verdict = verify(name, "no_graph_found", [], tmp_path)
+    assert verdict["valid"] is True and verdict["score"] == 1.0
+    assert verify(name, "ordered", G03, tmp_path)["valid"] is False
+    assert verify(name, "ordered", [], tmp_path)["valid"] is False
+    assert verify(name, "no_valid_order", [], tmp_path)["valid"] is False
+    verdict = verify(name, "no_graph_found", G03, tmp_path)
+    assert verdict["valid"] is False and "empty" in verdict["message"]
 
 
 def test_gives_partial_credit_for_an_order_that_breaks_some_prerequisites(tmp_path: Path) -> None:
     # g10 is the chain M C X A P H: swapping X and A breaks one of its five prerequisites.
-    verdict = verify(Graph.G10, True, ["M", "C", "A", "X", "P", "H"], tmp_path)
+    verdict = verify("g10", "ordered", ["M", "C", "A", "X", "P", "H"], tmp_path)
     assert verdict["valid"] is False and verdict["score"] == pytest.approx(0.8)
     assert verdict["details"]["broken"] == ["X before A"]
     # Alphabetical order is no shortcut.
-    assert verify(Graph.G10, True, ["A", "C", "H", "M", "P", "X"], tmp_path)["valid"] is False
-    reverse = verify(Graph.G19, True, ["U", "V", "W", "X", "Y", "Z"], tmp_path)
+    assert verify("g10", "ordered", ["A", "C", "H", "M", "P", "X"], tmp_path)["valid"] is False
+    reverse = verify("g19", "ordered", ["U", "V", "W", "X", "Y", "Z"], tmp_path)
     assert reverse["valid"] is False and reverse["score"] == 0.0
 
 
@@ -89,35 +102,37 @@ def test_gives_partial_credit_for_an_order_that_breaks_some_prerequisites(tmp_pa
     ],
 )
 def test_refuses_an_order_that_is_not_every_event_once(order, field, names, tmp_path: Path) -> None:
-    verdict = verify(Graph.G03, True, order, tmp_path)
+    verdict = verify("g03", "ordered", order, tmp_path)
     assert verdict["valid"] is False and verdict["score"] == 0.0
     assert verdict["details"][field] == names
 
 
 def test_boundary_graphs(tmp_path: Path) -> None:
-    assert verify(Graph.G17, True, ["K"], tmp_path)["valid"] is True  # one event
-    assert verify(Graph.G17, True, ["K", "K"], tmp_path)["valid"] is False
-    assert verify(Graph.G20, True, ["Q", "AF", "B"], tmp_path)["valid"] is True  # no prerequisites at all
-    assert verify(Graph.G12, True, ["D", "K", "P", "AE"], tmp_path)["valid"] is True  # the only valid order
-    assert verify(Graph.G13, False, [], tmp_path)["valid"] is True  # an event needs itself
-    assert verify(Graph.G02, False, [], tmp_path)["valid"] is True  # a prerequisite the graph lacks
+    assert verify("g17", "ordered", ["K"], tmp_path)["valid"] is True  # one event
+    assert verify("g17", "ordered", ["K", "K"], tmp_path)["valid"] is False
+    assert verify("g20", "ordered", ["Q", "AF", "B"], tmp_path)["valid"] is True  # no prerequisites at all
+    assert verify("g12", "ordered", ["D", "K", "P", "AE"], tmp_path)["valid"] is True  # the only valid order
+    assert verify("g13", "no_valid_order", [], tmp_path)["valid"] is True  # an event needs itself
+    assert verify("g02", "no_valid_order", [], tmp_path)["valid"] is True  # a prerequisite the graph lacks
 
 
 @pytest.mark.parametrize(
     "answer",
     [
         {},
-        {"solvable": True},
-        {"order": ["S", "H", "AB", "E"]},
-        {"solvable": None, "order": []},
-        {"solvable": True, "order": None},
-        {"solvable": "yes", "order": []},
-        {"solvable": 1, "order": []},
-        {"solvable": True, "order": "S,H,AB,E"},
-        {"solvable": True, "order": [1, 2]},
-        {"solvable": True, "order": ["S", None]},
-        {"solvable": True, "order": [["S"]]},
-        {"solvable": False, "order": [], "reason": "a cycle"},
+        {"status": "ordered"},
+        {"order": G03},
+        {"status": None, "order": []},
+        {"status": "ordered", "order": None},
+        {"status": "yes", "order": []},
+        {"status": "ORDERED", "order": G03},
+        {"status": True, "order": []},
+        {"status": "ordered", "order": "S,AB,H,E"},
+        {"status": "ordered", "order": [1, 2]},
+        {"status": "ordered", "order": ["S", None]},
+        {"status": "ordered", "order": [["S"]]},
+        {"status": "no_valid_order", "order": [], "reason": "a cycle"},
+        {"solvable": True, "order": G03},
     ],
 )
 def test_a_malformed_answer_never_reaches_the_verifier(answer: dict) -> None:
@@ -126,43 +141,19 @@ def test_a_malformed_answer_never_reaches_the_verifier(answer: dict) -> None:
         build_output(answer, EventOrderOutput)
 
 
-G03 = ["AB", "E", "H", "S"]
-
-
 @pytest.mark.parametrize(
     "arguments",
     [
         {},
-        {"graph": "g03"},
-        {"events": G03},
-        {"graph": "g99", "events": G03},
-        {"graph": "G03", "events": G03},
-        {"graph": None, "events": G03},
-        {"graph": "g03", "events": None},
-        {"graph": "g03", "events": "AB,E,H,S"},
-        {"graph": "g03", "events": [1, 2]},
+        {"graph": None},
+        {"graph": 3},
+        {"graph": ["g03"]},
+        {"graph": "g03", "events": ["AB", "E", "H", "S"]},
     ],
 )
 def test_a_malformed_task_input_is_refused(arguments: dict) -> None:
     with pytest.raises(ValueError):
         build_output(arguments, PlanInput)
-
-
-@pytest.mark.parametrize(
-    "events",
-    [
-        ["AB", "E", "H"],  # an event left out
-        ["AB", "E", "H", "S", "Q"],  # an event the graph does not have
-        ["AB", "E", "H", "S", "S"],  # an event twice
-        ["A", "B", "C", "D"],  # another graph's events
-        [],  # none at all
-    ],
-)
-def test_refuses_a_task_whose_events_are_not_the_graph_s(events: list[str], tmp_path: Path) -> None:
-    # Even a correct order is refused, since the task itself does not match the graph.
-    verdict = verify(Graph.G03, True, ["S", "AB", "H", "E"], tmp_path, events=events)
-    assert verdict["valid"] is False and "not those of g03" in verdict["message"]
-    assert verify(Graph.G03, True, ["S", "AB", "H", "E"], tmp_path, events=["S", "H", "E", "AB"])["valid"] is True
 
 
 def check(tool: str, value: dict, output: dict | None = None) -> bool:
@@ -177,12 +168,17 @@ def test_checks_tool_inputs() -> None:
     assert check("get_prerequisites", {"graph": "g03", "event": "AB"}) is True
     assert check("get_prerequisites", {"graph": "g03", "event": "ab"}) is False
     assert check("get_prerequisites", {"graph": "g03", "event": ""}) is False
+    # Any graph name may be asked for: the tool says when no graph has it.
+    for name in ["g03", *UNKNOWN]:
+        assert check("list_events", {"graph": name}) is True
 
 
-@pytest.mark.parametrize("graph", list(Graph))
-def test_approves_every_true_tool_output(graph: Graph, tmp_path: Path) -> None:
-    for event in GRAPHS[graph.value]:
-        given = {"graph": graph.value, "event": event}
+@pytest.mark.parametrize("graph", NAMES)
+def test_approves_every_true_tool_output(graph: str, tmp_path: Path) -> None:
+    given = {"graph": graph}
+    assert check("list_events", given, plain_output(list_events(build_output(given, EventsInput), tmp_path)))
+    for event in GRAPHS[graph]:
+        given = {"graph": graph, "event": event}
         output = plain_output(get_prerequisites(build_output(given, PrerequisitesInput), tmp_path))
         assert check("get_prerequisites", given, output) is True
 
@@ -190,12 +186,20 @@ def test_approves_every_true_tool_output(graph: Graph, tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     ("tool", "given", "output"),
     [
+        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["S", "H", "E", "AB"]}),  # unsorted
+        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["AB", "E", "H"]}),  # one dropped
+        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": ["AB", "E", "H", "Q", "S"]}),  # made up
+        ("list_events", {"graph": "g03"}, {"graph": "g03", "events": []}),  # none
+        ("list_events", {"graph": "g03"}, {"graph": "g02", "events": ["AB", "E", "H", "S"]}),  # another name
+        ("list_events", {"graph": "g99"}, {"graph": "g99", "events": []}),  # a graph that does not exist
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": ["H", "AB"]}),  # unsorted
         ("get_prerequisites", {"graph": "g03", "event": "S"}, {"event": "S", "prerequisites": ["S"]}),  # made up
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": []}),  # dropped
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "E", "prerequisites": ["AB"]}),  # one dropped
         ("get_prerequisites", {"graph": "g03", "event": "S"}, {"event": "S", "prerequisites": ["E"]}),  # made up
         ("get_prerequisites", {"graph": "g03", "event": "E"}, {"event": "H", "prerequisites": ["AB", "H"]}),
+        ("get_prerequisites", {"graph": "g03", "event": "Z"}, {"event": "Z", "prerequisites": []}),  # no such event
+        ("get_prerequisites", {"graph": "g99", "event": "A"}, {"event": "A", "prerequisites": []}),  # no such graph
     ],
 )
 def test_refuses_a_tool_output_that_is_not_what_the_graph_says(tool: str, given: dict, output: dict) -> None:
