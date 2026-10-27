@@ -1,11 +1,11 @@
 _ > nanoagent.plugin.v0001.ProductConfig:
 tagline: "Put events in an order that keeps every prerequisite"
-summary: "Input: the name of one of twenty bundled event graphs, g01 to g20, such as g18. What the agent does: it lists the graph's events with list_events, reads each event's prerequisites with get_prerequisites, and works out an order in which every event comes after everything it needs. Output: a status and an order. The status is ordered, with a valid order such as G, T, J, N, W, R for g18; no_valid_order, when the prerequisites rule out every order; or no_graph_found, when no bundled graph has that name. Those last two come with an empty order. A deterministic verifier checks the answer against the graph."
+summary: "Input: the name of one of twenty bundled event graphs, g01 to g20, such as g18. The agent reads the graph's events and what each one needs first, then works out an order in which every event comes after everything it needs. Output: a status and an order. The status is ordered, with a valid order such as G, T, J, N, W, R for g18; no_valid_order, when the prerequisites rule out every order; or no_graph_found, when no bundled graph has that name. Those last two come with an empty order. A deterministic verifier checks the answer against the graph."
 highlights:
   - "Any valid order passes: the verifier checks the prerequisites, not one fixed answer"
   - "Twenty graphs, from a single event to cycles, self-loops and missing prerequisites"
   - "No model and no network in the verifier: the same answer always gets the same verdict"
 steps:
   - "Ask it to order a graph's events by name, such as \"Order the events of graph g18\""
-  - "The agent lists the events with list_events and reads each one's prerequisites with get_prerequisites"
+  - "The agent lists the graph's events and reads what each one needs first"
   - "It returns an order, says none exists, or says no graph has that name, and the verifier judges it"
