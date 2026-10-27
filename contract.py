@@ -24,14 +24,13 @@ class Status(Enum):
 
 GRAPH = "The graph name from the task input, unchanged"
 STATUS = (
-    "ordered: order is a valid order of the graph's events; no_valid_order: the graph has no valid order; "
-    "no_graph_found: no bundled graph has the task's name"
+    "ordered: valid event order; no_valid_order: prerequisites cannot be satisfied; no_graph_found: unknown graph"
 )
 
 
 @dataclass
 class PlanInput(Output):
-    graph: Annotated[str, "The name of a bundled event graph, g01 to g20; any other name is no graph"]
+    graph: Annotated[str, "Graph name, g01 to g20; other names return no_graph_found"]
 
 
 @dataclass

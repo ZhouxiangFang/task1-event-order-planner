@@ -1,7 +1,7 @@
 _ > nanoagent.plugin.v0001.ManifestConfig:
 id: event-order-planner
 name: Event Order Planner
-version: 0.3.0
+version: 0.4.0
 status: ready
 spec: nanoagent.plugin/v0001
 
@@ -19,25 +19,23 @@ permissions > nanoagent.plugin.v0001.PermissionsConfig:
 tools > dict[contract.Tool, nanoagent.plugin.v0001.ToolConfig]:
   list_events:
     description: |-
-      List every event of one bundled graph. Set graph to the graph name from the task input, unchanged.
-      Returns {"graph": "<name>", "events": ["<event name>", ...]}, the events sorted by name.
-      A name that is not one of the bundled graphs, g01 to g20, returns an error saying no graph was found.
+      List a graph's events, sorted by name. Pass the task's graph name unchanged.
+      Returns {"graph": "<name>", "events": [...]}. Names outside g01 to g20 raise "no graph found".
   get_prerequisites:
     description: |-
-      Look up the direct prerequisites of one event. Set graph to the graph name from the task input and event to an exact event name that list_events returned.
-      Returns {"event": "<requested event>", "prerequisites": ["<event name>", ...]}. Every returned prerequisite must appear strictly before the requested event in your final order. The list is sorted by name; an empty list means this event has no prerequisites.
-      For example, {"event": "E", "prerequisites": ["AB", "H"]} means both AB and H must occur before E.
-      A prerequisite may name the event itself or an event that list_events did not return; either makes a valid order impossible. An event or graph that does not exist returns an error.
+      Get an event's direct prerequisites, sorted by name. Use the task's graph and an exact event name from list_events.
+      Returns {"event": "<name>", "prerequisites": [...]}. Each prerequisite must precede the event; an empty list means none.
+      A self-reference or a prerequisite missing from the graph makes ordering impossible. Unknown graphs or events raise errors.
 
 # One entry per contract.Task; its input class is contract.TASKS's.
 tasks > dict[contract.Task, nanoagent.plugin.v0001.TaskConfig]:
   plan-event-order:
-    description: Given the name of a bundled event graph, order its events so each comes after its prerequisites, or say that no valid order exists or that no graph has that name
+    description: Order a graph's events after their prerequisites, or report an impossible order or unknown graph.
     runner: agent
     tools: [list_events, get_prerequisites]
     reference: null
     instructions: |-
-      Call list_events with the task input's graph. If it reports that no graph was found, submit {"status": "no_graph_found", "order": []}.
-      Otherwise call get_prerequisites for every event it lists, all in one turn as parallel calls: you have only a few turns. An event may happen only after all of its prerequisites.
-      If some order has every event exactly once, each after all of its prerequisites, submit {"status": "ordered", "order": [...]}. Any such order is accepted.
-      If no such order exists (the prerequisites form a cycle, an event needs itself, or an event needs one that list_events did not return), submit {"status": "no_valid_order", "order": []}.
+      1. Call list_events with the task's graph. If it reports "no graph found", submit {"status": "no_graph_found", "order": []}.
+      2. Call get_prerequisites for every listed event in parallel; turns are limited.
+      3. Submit {"status": "ordered", "order": [...]} with every event exactly once, after all its prerequisites. Any valid order is accepted.
+      4. For a cycle, self-reference, or missing prerequisite, submit {"status": "no_valid_order", "order": []}.

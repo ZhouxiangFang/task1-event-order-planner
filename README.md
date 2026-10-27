@@ -1,22 +1,17 @@
 # Event Order Planner
 
-A `nanoagent.plugin/v0001` plugin. The agent is given the name of one of 20
-bundled event graphs. It lists the graph's events, looks up each event's
-prerequisites, then returns an order in which every event comes after all of its
-prerequisites, or says that no such order exists, or that no graph has that
-name. A deterministic verifier, with no model, accepts any order that keeps
-every prerequisite.
+Choose a graph from `g01` to `g20`. The agent looks up its events and prerequisites, then returns
+an order with every prerequisite first. It reports an unknown graph or an impossible order when needed.
+A deterministic verifier accepts any valid order.
 
 ## Tools
 
-| Tool | Does |
+| Tool | Purpose |
 |---|---|
-| `list_events` | Gives every event of a graph; fails with "no graph found" for a name no graph has |
-| `get_prerequisites` | Gives the events that must happen before one event of a graph |
+| `list_events` | List a graph's events, or report an unknown graph. |
+| `get_prerequisites` | List the events that must come before a given event. |
 
-| Task | Does |
-|---|---|
-| `plan-event-order` | Orders a graph's events so each comes after its prerequisites, or says no order exists or no graph has that name. Runner `agent`, with `list_events` and `get_prerequisites` |
+The `plan-event-order` task uses both tools to produce and verify an order.
 
 Input: `{"graph": "g18"}`, a name from `g01` to `g20`.
 Output: `{"status": "ordered", "order": [...]}`, `{"status": "no_valid_order", "order": []}`,
